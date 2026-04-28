@@ -4,23 +4,18 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
 # ---------------------------------------------------------------
 # 3D Gaussian Splatting — Singularity container
 #
-# Matches the original paper environment as closely as possible:
-#   Python    3.7.13
-#   PyTorch   1.12.1  (with cudatoolkit 11.6 runtime)
-#   CUDA SDK  11.8    (used to compile CUDA extensions)
+# Environment (paper-compatible, confirmed by authors):
+#   Python    3.8
+#   PyTorch   2.0.1  (cu118 pip wheel — includes sm_89 natively)
+#   CUDA SDK  11.8   (used to compile CUDA extensions)
 #
-# Why CUDA 11.8 SDK despite the paper using 11.6 cudatoolkit:
-#   The paper's README states "known issues with 11.6" for the SDK
-#   and confirms they used CUDA SDK 11.8 for compilation.
-#   The cudatoolkit=11.6 conda package provides only runtime
-#   libraries; NVCC (the compiler) comes from the system CUDA,
-#   which we set to 11.8 here.
+# PyTorch is installed via pip from download.pytorch.org/whl/cu118
+# to avoid the conda classic solver hanging on old package versions.
+# The paper authors confirmed PyTorch 2.0 / Python 3.8 is compatible.
 #
 # Why TORCH_CUDA_ARCH_LIST includes 8.9:
-#   PyTorch 1.12.1 pre-built wheels do not include sm_89
-#   (RTX 4080 / Ada Lovelace). Setting this variable forces
-#   the CUDA extensions to be compiled for sm_89 explicitly
-#   using the system NVCC 11.8, which does support it.
+#   Ensures CUDA extensions are compiled for sm_89 (RTX 4080 / Ada
+#   Lovelace) even if not pre-built in the PyTorch wheel.
 #
 # Build on rhea:
 #   singularity build --fakeroot ~/containers/3dgs.sif \
@@ -37,22 +32,18 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
 # ---------------------------------------------------------------
 
 %environment
-    # Activate the gaussian_splatting conda environment
     export PATH=/opt/conda/envs/gaussian_splatting/bin:/opt/conda/bin:$PATH
     export CONDA_DEFAULT_ENV=gaussian_splatting
 
-    # Point to system CUDA 11.8 for any runtime extension compilation
     export CUDA_HOME=/usr/local/cuda-11.8
     export PATH=/usr/local/cuda-11.8/bin:$PATH
     export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
 
-    # Compile CUDA extensions for these architectures.
     # 7.0=V100, 7.5=T4/RTX20, 8.0=A100, 8.6=RTX30, 8.9=RTX40(4080)
     export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9"
 
     export PYTHONDONTWRITEBYTECODE=1
     export PYTHONUNBUFFERED=1
-    # Suppress display/Qt errors on headless server
     export QT_QPA_PLATFORM=offscreen
 
 %post
@@ -67,51 +58,51 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
         libgomp1
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-    # ---- Point to system CUDA 11.8 for compilation ----
     export CUDA_HOME=/usr/local/cuda-11.8
     export PATH=/usr/local/cuda-11.8/bin:$PATH
     export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
     export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9"
 
-    # ---- Install Miniconda with Python 3.7 ----
+    # ---- Install Miniconda ----
     wget -q \
-        https://repo.anaconda.com/miniconda/Miniconda3-py37_23.1.0-1-Linux-x86_64.sh \
+        https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
         -O /tmp/miniconda.sh
     bash /tmp/miniconda.sh -b -p /opt/conda
     rm /tmp/miniconda.sh
-    /opt/conda/bin/conda clean -afy
 
     export PATH=/opt/conda/bin:$PATH
 
-    # ---- Create conda environment matching environment.yml exactly ----
-    # Python 3.7.13, PyTorch 1.12.1, cudatoolkit 11.6 (runtime only)
-    /opt/conda/bin/conda create -n gaussian_splatting python=3.7.13 -y
+    # ---- Switch to libmamba solver (avoids classic solver hanging) ----
+    /opt/conda/bin/conda install -n base -c conda-forge conda-libmamba-solver -y
+    /opt/conda/bin/conda config --set solver libmamba
 
+    # ---- Create conda environment with Python 3.8 ----
+    /opt/conda/bin/conda create -n gaussian_splatting python=3.8 -y
+
+    # ---- Install lightweight conda packages (fast with libmamba) ----
     /opt/conda/bin/conda install -n gaussian_splatting -y \
-        -c pytorch -c conda-forge \
-        pytorch=1.12.1 \
-        torchvision=0.13.1 \
-        torchaudio=0.12.1 \
-        cudatoolkit=11.6 \
-        pip=22.3.1 \
+        -c conda-forge \
         plyfile \
         tqdm
 
-    # ---- pip dependencies from environment.yml ----
+    # ---- Install PyTorch 2.0.1 via pip (bypasses conda solver for heavy pkgs) ----
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
+        torch==2.0.1+cu118 \
+        torchvision==0.15.2+cu118 \
+        torchaudio==2.0.2+cu118 \
+        --index-url https://download.pytorch.org/whl/cu118
+
+    # ---- Remaining pip dependencies ----
     /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
         opencv-python-headless \
         joblib
 
     # ---- Clone upstream 3DGS to compile CUDA submodules ----
-    # We clone upstream (not the user's code) only to get the submodule
-    # source for compilation. The user's code is mounted at runtime.
     git clone --recursive \
         https://github.com/graphdeco-inria/gaussian-splatting \
         /opt/gaussian-splatting-src
 
     # ---- Build CUDA extensions ----
-    # NVCC 11.8 (system) compiles these for sm_89 (RTX 4080)
-    # even though PyTorch 1.12.1 wheels don't include sm_89 natively.
     cd /opt/gaussian-splatting-src
     /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
         submodules/diff-gaussian-rasterization
@@ -126,15 +117,15 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
 
 %labels
     Author roberts.kalvitis
-    Version 1.0
-    Description Original 3DGS paper env: Python 3.7.13, PyTorch 1.12.1, CUDA 11.8 build
+    Version 1.1
+    Description 3DGS paper-compatible env: Python 3.8, PyTorch 2.0.1+cu118, CUDA SDK 11.8
     Paper Kerbl et al. 2023 — 3D Gaussian Splatting for Real-Time Radiance Field Rendering
 
 %help
-    Reproduces the original 3DGS paper.
-      Python:   3.7.13
-      PyTorch:  1.12.1 (cudatoolkit 11.6 runtime)
-      CUDA SDK: 11.8 (used to compile extensions)
-      CUDA extensions compiled for sm_89 (RTX 4080) via NVCC 11.8.
+    Reproduces 3DGS paper (Table 1) with a paper-compatible environment.
+      Python:   3.8
+      PyTorch:  2.0.1+cu118 (pip wheel)
+      CUDA SDK: 11.8
+      CUDA extensions compiled for sm_89 (RTX 4080).
     Mount your code to /workspace, datasets to /data, outputs to /output.
     Always run with --nv to enable GPU access.
