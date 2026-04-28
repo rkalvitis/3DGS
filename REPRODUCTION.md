@@ -38,12 +38,17 @@ source ~/.bashrc
 
 ## Phase 2 — Copy code to rhea
 
-Run this on your **local machine**:
+On rhea, clone your GitHub repo with `--recursive` to also pull all submodules (diff-gaussian-rasterization, simple-knn, fused-ssim). Without `--recursive` the submodule folders will be empty and the container build will fail.
 
 ```bash
-rsync -avz --exclude='.git' \
-    /Users/robertskalvitis/Documents/repos/master/3DGS/gaussian-splatting/ \
-    robertsk@rhea.idsia.ch:~/gaussian-splatting/
+git clone --recursive https://github.com/rkalvitis/3DGS.git ~/gaussian-splatting
+```
+
+For subsequent updates, pull on rhea after pushing from your local machine:
+
+```bash
+git -C ~/gaussian-splatting pull
+git -C ~/gaussian-splatting submodule update --init --recursive
 ```
 
 ---
