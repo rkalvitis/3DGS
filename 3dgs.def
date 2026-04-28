@@ -72,6 +72,10 @@ From: /home/robertsk/containers/cuda118.sif
 
     export PATH=/opt/conda/bin:$PATH
 
+    # ---- Accept Anaconda ToS (required by newer Miniconda releases) ----
+    /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+    /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
     # ---- Switch to libmamba solver (avoids classic solver hanging) ----
     /opt/conda/bin/conda install -n base -c conda-forge conda-libmamba-solver -y
     /opt/conda/bin/conda config --set solver libmamba
