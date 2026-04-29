@@ -115,7 +115,7 @@ singularity build --fakeroot ~/containers/3dgs.sif ~/gaussian-splatting/3dgs.def
 Verify the build:
 
 ```bash
-singularity exec --nv ~/containers/3dgs.sif python -c "
+CUDA_VISIBLE_DEVICES=1 singularity exec --nv ~/containers/3dgs.sif python -c "
 import torch
 print('PyTorch:', torch.__version__)
 print('CUDA available:', torch.cuda.is_available())
@@ -129,7 +129,7 @@ from fused_ssim import fused_ssim; print('fused-ssim: OK')
 Expected output:
 
 ```
-PyTorch: 1.12.1+cu116
+PyTorch: 2.0.1+cu118
 CUDA available: True
 GPU: NVIDIA GeForce RTX 4080
 diff-gaussian-rasterization: OK

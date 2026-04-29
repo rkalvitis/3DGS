@@ -24,7 +24,7 @@ CODE_DIR="${CODE_DIR:-/workspace}"
 DATA_DIR="${DATA_DIR:-/data}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 
 SEEDS=(0 1 2 3 4)
 
