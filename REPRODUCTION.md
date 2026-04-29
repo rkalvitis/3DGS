@@ -58,9 +58,9 @@ git -C ~/gaussian-splatting submodule update --init --recursive
 Store data on fast RAID storage, not in home:
 
 ```bash
-mkdir -p /media/black/3dgs/3dgs_data
-mkdir -p /media/black/3dgs/3dgs_output
-cd /media/black/3dgs/3dgs_data
+mkdir -p /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
+mkdir -p /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output
+cd /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
 ```
 
 **Mip-NeRF360** (~20 GB):
@@ -237,8 +237,8 @@ Reattach at any time with `screen -r 3dgs -U`.
 
 ```bash
 export CODE_DIR=/home/$USER/gaussian-splatting
-export DATA_DIR=/media/black/3dgs/3dgs_data
-export OUTPUT_DIR=/media/black/3dgs/3dgs_output
+export DATA_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
+export OUTPUT_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output
 
 singularity exec \
     --nv \
@@ -268,10 +268,10 @@ Press `Ctrl+A`, then `D`.
 
 ```bash
 # How many of the 65 runs have completed
-ls /media/black/3dgs/3dgs_output/ | grep -v logs | wc -l
+ls /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output/ | grep -v logs | wc -l
 
 # Live log for whichever run is currently executing
-tail -f /media/black/3dgs/3dgs_output/logs/bicycle_seed0.log
+tail -f /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output/logs/bicycle_seed0.log
 
 # GPU utilisation
 nvidia-smi
@@ -285,7 +285,7 @@ After all 65 runs finish, aggregate the `results.json` files using `collect_resu
 
 ```bash
 singularity exec --nv --cleanenv --contain \
-    --bind /media/black/3dgs/3dgs_output:/output \
+    --bind /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output:/output \
     --bind /home/$USER/gaussian-splatting:/workspace \
     ~/containers/3dgs.sif \
     python /workspace/collect_results.py
