@@ -61,6 +61,11 @@ for scene in "${!SCENES[@]}"; do
         out_path="$OUTPUT_DIR/${scene}_seed${seed}"
         log_file="$LOG_DIR/${scene}_seed${seed}.log"
 
+        if [ -f "$out_path/results.json" ]; then
+            echo "[$(date '+%H:%M:%S')] ($COUNT/$TOTAL) SKIP   ${scene}  seed=${seed}  (results.json exists)"
+            continue
+        fi
+
         echo "[$(date '+%H:%M:%S')] ($COUNT/$TOTAL) START  ${scene}  seed=${seed}"
 
         python "$CODE_DIR/train.py" \
