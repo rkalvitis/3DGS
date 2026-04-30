@@ -25,12 +25,18 @@ DATA_DIR="${DATA_DIR:-/data}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 
 export CUDA_VISIBLE_DEVICES=1
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 
 SEEDS=(0 1 2 3 4)
 
 declare -A SCENES
-SCENES[bicycle]="mipnerf360/bicycle"
-SCENES[flowers]="mipnerf360/flowers"
+SCENES[truck]="tandt/truck"
+SCENES[train]="tandt/train"
+
+SCENES[playroom]="db/playroom"
+SCENES[drjohnson]="db/drjohnson"
+
+# SCENES[flowers]="mipnerf360/flowers"
 SCENES[garden]="mipnerf360/garden"
 SCENES[stump]="mipnerf360/stump"
 SCENES[treehill]="mipnerf360/treehill"
@@ -38,10 +44,8 @@ SCENES[room]="mipnerf360/room"
 SCENES[counter]="mipnerf360/counter"
 SCENES[kitchen]="mipnerf360/kitchen"
 SCENES[bonsai]="mipnerf360/bonsai"
-SCENES[truck]="tandt/truck"
-SCENES[train]="tandt/train"
-SCENES[playroom]="db/playroom"
-SCENES[drjohnson]="db/drjohnson"
+SCENES[bicycle]="mipnerf360/bicycle"
+
 
 mkdir -p "$OUTPUT_DIR"
 LOG_DIR="$OUTPUT_DIR/logs"
