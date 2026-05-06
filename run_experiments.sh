@@ -24,7 +24,6 @@ CODE_DIR="${CODE_DIR:-/workspace}"
 DATA_DIR="${DATA_DIR:-/data}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 
-export CUDA_VISIBLE_DEVICES=1
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 
 SEEDS=(0 1 2 3 4)
@@ -69,6 +68,7 @@ for scene in "${!SCENES[@]}"; do
             --eval \
             --disable_viewer \
             --seed "$seed" \
+            --device 1 \
             >> "$log_file" 2>&1
 
         python "$CODE_DIR/render.py" \

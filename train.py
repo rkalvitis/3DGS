@@ -268,13 +268,14 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--device', type=int, default=1)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
 
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
-    safe_state(args.quiet, args.seed)
+    safe_state(args.quiet, args.seed, args.device)
 
     # Start GUI server, configure and run training
     if not args.disable_viewer:
