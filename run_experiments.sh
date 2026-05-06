@@ -23,8 +23,10 @@ set -euo pipefail
 CODE_DIR="${CODE_DIR:-/workspace}"
 DATA_DIR="${DATA_DIR:-/data}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
+DEVICE=1
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+export TORCH_HOME=/torch_cache
 
 SEEDS=(0 1 2 3 4)
 
@@ -35,7 +37,7 @@ SCENES[train]="tandt/train"
 SCENES[playroom]="db/playroom"
 SCENES[drjohnson]="db/drjohnson"
 
-# SCENES[flowers]="mipnerf360/flowers"
+SCENES[flowers]="mipnerf360/flowers"
 SCENES[garden]="mipnerf360/garden"
 SCENES[stump]="mipnerf360/stump"
 SCENES[treehill]="mipnerf360/treehill"
@@ -68,15 +70,26 @@ for scene in "${!SCENES[@]}"; do
             --eval \
             --disable_viewer \
             --seed "$seed" \
-            --device 1 \
+            --device "$DEVICE" \
             >> "$log_file" 2>&1
 
         python "$CODE_DIR/render.py" \
             -m "$out_path" \
+            --iteration 7000 \
+            --skip_train \
+            --device "$DEVICE" \
+            >> "$log_file" 2>&1
+
+        python "$CODE_DIR/render.py" \
+            -m "$out_path" \
+            --iteration 30000 \
+            --skip_train \
+            --device "$DEVICE" \
             >> "$log_file" 2>&1
 
         python "$CODE_DIR/metrics.py" \
             -m "$out_path" \
+            --device "$DEVICE" \
             >> "$log_file" 2>&1
 
         echo "[$(date '+%H:%M:%S')] ($COUNT/$TOTAL) DONE   ${scene}  seed=${seed}"

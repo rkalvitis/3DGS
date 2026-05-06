@@ -11,10 +11,12 @@ Replicates **Kerbl et al. 2023 (3DGS) Table 1** — PSNR/SSIM/LPIPS across 13 sc
 
 | File | Purpose |
 |---|---|
-| `train.py` | Modified to accept `--seed N` argument |
-| `utils/general_utils.py` | `safe_state` uses the passed seed |
+| `train.py` | Modified to accept `--seed N` and `--device N` arguments |
+| `render.py` | Modified to accept `--device N` argument |
+| `metrics.py` | Modified to accept `--device N` argument |
+| `utils/general_utils.py` | `safe_state` keeps `random`/`numpy`/`torch` CPU seeds fixed at 0 (original behaviour); only the CUDA seed varies per run via `--seed` |
 | `3dgs.def` | Singularity definition file — original paper environment (PyTorch 1.12.1, Python 3.7.13) |
-| `run_experiments.sh` | Runs all 13 scenes × 5 seeds on GPU 0, sequentially |
+| `run_experiments.sh` | Runs all scenes × 5 seeds sequentially; set `DEVICE=` at the top to pick the GPU |
 
 ---
 
@@ -59,7 +61,7 @@ Store data on fast RAID storage, not in home:
 
 ```bash
 mkdir -p /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
-mkdir -p /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output
+mkdir -p /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2
 cd /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
 ```
 
@@ -238,7 +240,7 @@ Reattach at any time with `screen -r 3dgs -U`.
 ```bash
 export CODE_DIR=/home/$USER/gaussian-splatting
 export DATA_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
-export OUTPUT_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output
+export OUTPUT_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2
 
 singularity exec \
     --nv \
@@ -247,6 +249,7 @@ singularity exec \
     --bind "$CODE_DIR:/workspace" \
     --bind "$DATA_DIR:/data" \
     --bind "$OUTPUT_DIR:/output" \
+    --bind "/media/white/nanodrones/roberts.kalvitis/3dgs/torch_cache:/torch_cache" \
     ~/containers/3dgs.sif \
     bash /workspace/run_experiments.sh
 ```
@@ -268,10 +271,10 @@ Press `Ctrl+A`, then `D`.
 
 ```bash
 # How many of the 65 runs have completed
-ls /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output/ | grep -v logs | wc -l
+ls /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2/ | grep -v logs | wc -l
 
 # Live log for whichever run is currently executing
-tail -f /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output/logs/bicycle_seed0.log
+tail -f /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2/logs/bicycle_seed0.log
 
 # GPU utilisation
 nvidia-smi
@@ -285,7 +288,7 @@ After all 65 runs finish, aggregate the `results.json` files using `collect_resu
 
 ```bash
 singularity exec --nv --cleanenv --contain \
-    --bind /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output:/output \
+    --bind /media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2:/output \
     --bind /home/$USER/gaussian-splatting:/workspace \
     ~/containers/3dgs.sif \
     python /workspace/collect_results.py
@@ -304,7 +307,7 @@ nvidia-smi  # confirm no processes running
 
 | Item | Detail |
 |---|---|
-| GPU | 1× RTX 4080 16GB (`CUDA_VISIBLE_DEVICES=0`) |
+| GPU | 1× RTX 4080 16GB — set `DEVICE=1` at top of `run_experiments.sh` to change |
 | Container | Python 3.7.13, PyTorch 1.12.1+cu116, CUDA SDK 11.8, built on rhea |
 | Scenes | 9× Mip-NeRF360, 2× Tanks & Temples, 2× Deep Blending |
 | Seeds | 5 (0, 1, 2, 3, 4) |
