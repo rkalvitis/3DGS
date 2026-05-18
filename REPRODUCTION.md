@@ -242,16 +242,9 @@ export CODE_DIR=/home/$USER/gaussian-splatting
 export DATA_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
 export OUTPUT_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2
 
-singularity exec \
-    --nv \
-    --cleanenv \
-    --contain \
-    --bind "$CODE_DIR:/workspace" \
-    --bind "$DATA_DIR:/data" \
-    --bind "$OUTPUT_DIR:/output" \
-    --bind "/media/white/nanodrones/roberts.kalvitis/3dgs/torch_cache:/torch_cache" \
-    ~/containers/3dgs.sif \
-    bash /workspace/run_experiments.sh
+mkdir -p "$OUTPUT_DIR"
+
+singularity exec --nv --cleanenv --contain --bind "$CODE_DIR:/workspace" --bind "$DATA_DIR:/data" --bind "$OUTPUT_DIR:/output" --bind "/media/white/nanodrones/roberts.kalvitis/3dgs/torch_cache:/torch_cache" ~/containers/3dgs.sif bash /workspace/run_experiments.sh
 ```
 
 | Flag | What it does |
