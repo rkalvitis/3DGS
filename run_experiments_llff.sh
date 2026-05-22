@@ -23,7 +23,7 @@ set -euo pipefail
 CODE_DIR="${CODE_DIR:-/workspace}"
 DATA_DIR="${DATA_DIR:-/data/llff}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output/llff}"
-DEVICE=1
+DEVICE=0
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 export TORCH_HOME=/torch_cache

@@ -94,6 +94,17 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, depths_params, images_fold
             focal_length_y = intr.params[1]
             FovY = focal2fov(focal_length_y, height)
             FovX = focal2fov(focal_length_x, width)
+        elif intr.model in ("SIMPLE_RADIAL", "RADIAL"):
+            # single focal length; distortion coefficients ignored (images already undistorted)
+            focal_length_x = intr.params[0]
+            FovY = focal2fov(focal_length_x, height)
+            FovX = focal2fov(focal_length_x, width)
+        elif intr.model in ("OPENCV", "OPENCV_FISHEYE", "FULL_OPENCV"):
+            # fx, fy are params[0], params[1]; distortion ignored (images already undistorted)
+            focal_length_x = intr.params[0]
+            focal_length_y = intr.params[1]
+            FovY = focal2fov(focal_length_y, height)
+            FovX = focal2fov(focal_length_x, width)
         else:
             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
 
