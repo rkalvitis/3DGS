@@ -51,7 +51,7 @@ for scene in "${SCENES[@]}"; do
         python "$CODE_DIR/train.py" \
             -s "$scene_path" \
             -m "$out_path" \
-            --images images_4 \
+            --resolution 4 \
             --eval \
             --disable_viewer \
             --seed "$seed" \
