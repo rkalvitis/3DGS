@@ -1,0 +1,142 @@
+Bootstrap: localimage
+From: /home/robertsk/containers/cuda118.sif
+
+# ---------------------------------------------------------------
+# 3D Gaussian Splatting — Singularity container
+#
+# Environment (paper-compatible, confirmed by authors):
+#   Python    3.8
+#   PyTorch   2.0.1  (cu118 pip wheel — includes sm_89 natively)
+#   CUDA SDK  11.8   (used to compile CUDA extensions)
+#
+# PyTorch is installed via pip from download.pytorch.org/whl/cu118
+# to avoid the conda classic solver hanging on old package versions.
+# The paper authors confirmed PyTorch 2.0 / Python 3.8 is compatible.
+#
+# Why TORCH_CUDA_ARCH_LIST includes 8.9:
+#   Ensures CUDA extensions are compiled for sm_89 (RTX 4080 / Ada
+#   Lovelace) even if not pre-built in the PyTorch wheel.
+#
+# Build on rhea:
+#   singularity build --fakeroot ~/containers/3dgs.sif \
+#       ~/gaussian-splatting/3dgs.def
+#
+# Run example:
+#   singularity exec --nv --cleanenv --contain \
+#     --bind /path/to/code:/workspace \
+#     --bind /path/to/data:/data \
+#     --bind /path/to/output:/output \
+#     ~/containers/3dgs.sif \
+#     python /workspace/train.py -s /data/SCENE -m /output/SCENE_seed0 \
+#       --eval --disable_viewer --seed 0
+# ---------------------------------------------------------------
+
+%environment
+    export PATH=/opt/conda/envs/gaussian_splatting/bin:/opt/conda/bin:$PATH
+    export CONDA_DEFAULT_ENV=gaussian_splatting
+
+    export CUDA_HOME=/usr/local/cuda-11.8
+    export PATH=/usr/local/cuda-11.8/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+
+    # 7.0=V100, 7.5=T4/RTX20, 8.0=A100, 8.6=RTX30, 8.9=RTX40(4080)
+    export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9"
+
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export QT_QPA_PLATFORM=offscreen
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+
+    # ---- System build dependencies ----
+    apt-get update -qq
+    apt-get install -y --no-install-recommends \
+        git wget curl ca-certificates \
+        build-essential cmake ninja-build \
+        libgl1-mesa-glx libglib2.0-0 \
+        libgomp1 \
+        libxrender1 libxext6 libsm6
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    export CUDA_HOME=/usr/local/cuda-11.8
+    export PATH=/usr/local/cuda-11.8/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+    export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9"
+
+    # ---- Install Miniconda ----
+    wget -q \
+        https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+        -O /tmp/miniconda.sh
+    bash /tmp/miniconda.sh -b -p /opt/conda
+    rm /tmp/miniconda.sh
+
+    export PATH=/opt/conda/bin:$PATH
+
+    # ---- Accept Anaconda ToS (required by newer Miniconda releases) ----
+    /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+    /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+    # ---- Switch to libmamba solver (avoids classic solver hanging) ----
+    /opt/conda/bin/conda install -n base -c conda-forge conda-libmamba-solver -y
+    /opt/conda/bin/conda config --set solver libmamba
+
+    # ---- Create conda environment with Python 3.8 ----
+    /opt/conda/bin/conda create -n gaussian_splatting python=3.8 -y
+
+    # ---- Install lightweight conda packages (fast with libmamba) ----
+    /opt/conda/bin/conda install -n gaussian_splatting -y \
+        -c conda-forge \
+        plyfile \
+        tqdm
+
+    # ---- Install PyTorch 2.0.1 via pip (bypasses conda solver for heavy pkgs) ----
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
+        torch==2.0.1+cu118 \
+        torchvision==0.15.2+cu118 \
+        torchaudio==2.0.2+cu118 \
+        --index-url https://download.pytorch.org/whl/cu118
+
+    # ---- Remaining pip dependencies ----
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
+        opencv-python-headless \
+        joblib
+
+    # ---- Clone upstream 3DGS to compile CUDA submodules ----
+    git clone --recursive \
+        https://github.com/graphdeco-inria/gaussian-splatting \
+        /opt/gaussian-splatting-src
+
+    # ---- Build CUDA extensions ----
+    cd /opt/gaussian-splatting-src
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
+        submodules/diff-gaussian-rasterization
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
+        submodules/simple-knn
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir \
+        submodules/fused-ssim
+
+    # ---- COLMAP (GPU-accelerated feature extraction & triangulation) ----
+    /opt/conda/bin/conda install -n gaussian_splatting -y -c conda-forge colmap
+
+    # ---- FineView pipeline: HDF5 reader + image I/O ----
+    /opt/conda/envs/gaussian_splatting/bin/pip install --no-cache-dir h5py Pillow
+
+    # ---- Cleanup ----
+    rm -rf /opt/gaussian-splatting-src
+    /opt/conda/bin/conda clean -afy
+
+%labels
+    Author roberts.kalvitis
+    Version 1.2
+    Description 3DGS env + COLMAP + FineView pipeline: Python 3.8, PyTorch 2.0.1+cu118, CUDA SDK 11.8
+    Paper Kerbl et al. 2023 — 3D Gaussian Splatting for Real-Time Radiance Field Rendering
+
+%help
+    Reproduces 3DGS paper (Table 1) with a paper-compatible environment.
+      Python:   3.8
+      PyTorch:  2.0.1+cu118 (pip wheel)
+      CUDA SDK: 11.8
+      CUDA extensions compiled for sm_89 (RTX 4080).
+    Mount your code to /workspace, datasets to /data, outputs to /output.
+    Always run with --nv to enable GPU access.

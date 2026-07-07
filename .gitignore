@@ -6,3 +6,13 @@ diff_rasterization/diff_rast.egg-info
 diff_rasterization/dist
 tensorboard_3d
 screenshots
+CLAUDE.md
+extra db/
+imgs_filtered/
+images/
+fineview_colmap/
+imgs_filtered.zip
+butterfly dataset.pdf
+presentation/
+3dgs_output_cams/
+.claude/
