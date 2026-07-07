@@ -23,7 +23,12 @@ set -euo pipefail
 CODE_DIR="${CODE_DIR:-/workspace}"
 DATA_DIR="${DATA_DIR:-/data/llff}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output/llff}"
-DEVICE=0
+DEVICE="${DEVICE:-0}"
+EXP_NAME="${EXP_NAME:-}"
+if [ -n "$EXP_NAME" ]; then
+    OUTPUT_DIR="$OUTPUT_DIR/$EXP_NAME"
+fi
+echo "Output root: $OUTPUT_DIR"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 export TORCH_HOME=/torch_cache

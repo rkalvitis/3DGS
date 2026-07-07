@@ -7,14 +7,21 @@
 #
 # Usage (inside the container, same env vars as run_experiments.sh):
 #   bash /workspace/scripts/run_metrics_only.sh
+#
+# Optional: DEVICE (CUDA device index, default 1) and EXP_NAME (process the
+# runs under $OUTPUT_DIR/$EXP_NAME/ instead of $OUTPUT_DIR).
 # =============================================================================
 
 set -euo pipefail
 
 CODE_DIR="${CODE_DIR:-/workspace}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
-
-export CUDA_VISIBLE_DEVICES=1
+DEVICE="${DEVICE:-1}"
+EXP_NAME="${EXP_NAME:-}"
+if [ -n "$EXP_NAME" ]; then
+    OUTPUT_DIR="$OUTPUT_DIR/$EXP_NAME"
+fi
+echo "Output root: $OUTPUT_DIR"
 
 LOG_DIR="$OUTPUT_DIR/logs"
 mkdir -p "$LOG_DIR"
@@ -38,10 +45,12 @@ for run_dir in "$OUTPUT_DIR"/*/; do
 
     echo "[$(date '+%H:%M:%S')] ($COUNT/$TOTAL) render 7k  $run_name"
     python "$CODE_DIR/render.py" -m "$run_dir" --iteration 7000 --skip_train \
+        --device "$DEVICE" \
         2>&1 | tee -a "$log_file"
 
     echo "[$(date '+%H:%M:%S')] ($COUNT/$TOTAL) metrics    $run_name"
     python "$CODE_DIR/metrics.py" -m "$run_dir" \
+        --device "$DEVICE" \
         2>&1 | tee -a "$log_file"
 done
 

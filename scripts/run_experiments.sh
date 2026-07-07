@@ -11,6 +11,8 @@
 #   CODE_DIR    — path to your gaussian-splatting code   (e.g. /workspace)
 #   DATA_DIR    — root folder containing all datasets     (e.g. /data)
 #   OUTPUT_DIR  — where results are written               (e.g. /output)
+#   DEVICE      — CUDA device index (default 1)
+#   EXP_NAME    — optional experiment name; outputs land in $OUTPUT_DIR/$EXP_NAME/
 #
 # Expected dataset layout inside DATA_DIR:
 #   $DATA_DIR/mipnerf360/{bicycle,flowers,garden,stump,treehill,room,counter,kitchen,bonsai}/
@@ -24,6 +26,11 @@ CODE_DIR="${CODE_DIR:-/workspace}"
 DATA_DIR="${DATA_DIR:-/data}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 DEVICE="${DEVICE:-1}"
+EXP_NAME="${EXP_NAME:-}"
+if [ -n "$EXP_NAME" ]; then
+    OUTPUT_DIR="$OUTPUT_DIR/$EXP_NAME"
+fi
+echo "Output root: $OUTPUT_DIR"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 export TORCH_HOME=/torch_cache

@@ -4,7 +4,7 @@
 #
 # Environment variables (override as needed):
 #   DEVICE     CUDA device index (default: 0)
-#   DATA_DIR   COLMAP scenes dir (output of run_fineview_colmap.sh)
+#   DATA_DIR   COLMAP scenes dir (output of scripts/run_fineview_colmap.sh)
 #   OUTPUT_DIR training output root
 #   EXP_NAME   experiment subdirectory under OUTPUT_DIR (e.g. white_noise_experiment);
 #              all scenes + logs land in $OUTPUT_DIR/$EXP_NAME/. Default: no subdir.

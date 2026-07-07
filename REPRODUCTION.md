@@ -104,6 +104,7 @@ mkdir -p "$OUTPUT_DIR" "$TORCH_CACHE"
 
 singularity exec --nv --cleanenv --contain \
     --env DEVICE=${DEVICE:-1} \
+    --env EXP_NAME=${EXP_NAME:-} \
     --bind "$CODE_DIR:/workspace" \
     --bind "$DATA_DIR:/data" \
     --bind "$OUTPUT_DIR:/output" \
@@ -119,6 +120,7 @@ Detach from screen with **Ctrl+A, D**.
 | `--nv` | Exposes the NVIDIA driver to the container |
 | `--cleanenv --contain` | No host env vars or auto-mounted home — the container only sees the binds |
 | `DEVICE` | CUDA device index used by all runs (default 1) |
+| `EXP_NAME` | Optional experiment name — groups this launch's 65 runs (and logs) under `$OUTPUT_DIR/$EXP_NAME/` so repeated launches don't mix |
 
 ---
 
