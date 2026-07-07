@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES="${DEVICE:-0}"
 export PYTHONPATH=/workspace
 
 RAW_DATA=${RAW_DATA:-/raw_data}

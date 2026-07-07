@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES="${DEVICE:-0}"
 export TORCH_HOME=/torch_cache
 DATA_DIR=${DATA_DIR:-/data}
 OUTPUT_DIR=${OUTPUT_DIR:-/output}

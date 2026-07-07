@@ -11,7 +11,10 @@ summary = {itr: defaultdict(lambda: defaultdict(list)) for itr in ITERATIONS}
 
 for f in sorted(glob.glob(os.path.join(OUTPUT_DIR, '**/results.json'), recursive=True)):
     run_name = os.path.basename(os.path.dirname(f))
-    scene, seed = run_name.rsplit('_seed', 1)
+    if '_seed' in run_name:
+        scene, seed = run_name.rsplit('_seed', 1)
+    else:
+        scene, seed = run_name, '0'   # single-seed runs (e.g. FineView species)
     with open(f) as fh:
         data = json.load(fh)
     for itr in ITERATIONS:
