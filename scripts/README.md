@@ -27,6 +27,8 @@ There are three experiment groups:
 
 ## Common environment variables
 
+**Always set `EXP_NAME`** when launching an experiment — it names the folder (`$OUTPUT_DIR/$EXP_NAME/`) that all runs and logs of that launch go into. Without it, repeated launches pile into the same directory and can't be told apart.
+
 | Variable | Meaning | Default |
 |---|---|---|
 | `CODE_DIR` | repo mount point | `/workspace` |

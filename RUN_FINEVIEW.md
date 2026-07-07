@@ -4,7 +4,6 @@ Converts FineView insect captures (calibrated multi-camera rig, 8 lenses × 40 r
 
 **Species:** 009-Neophasia_Menapia-001, 072-Colias_Eurytheme-002, 110-Nymphalis_l_album-001, 184-Speyeria_Hydaspe-001, 195-Lycaena_Arota-002
 **Time:** ~1–2 h export + ~1 h training per species
-**Container:** the same `3dgs.sif` as the Table 1 reproduction (it includes COLMAP, h5py, Pillow) — see `REPRODUCTION.md` §3 for building it.
 
 ---
 
@@ -16,7 +15,31 @@ git clone --recursive -b fineview https://github.com/rkalvitis/3DGS.git ~/gaussi
 
 ---
 
-## 2 — Prepare the raw data
+## 2 — Build the Singularity container
+
+The same `3dgs.sif` serves the Table 1 reproduction and FineView — it includes COLMAP, h5py, and Pillow. Build **on the machine with the target GPU** (the CUDA extensions are compiled during the build; ~30 min):
+
+```bash
+mkdir -p ~/.singularity/tmp && export SINGULARITY_TMPDIR=$HOME/.singularity/tmp
+mkdir -p ~/containers
+singularity build --fakeroot ~/containers/3dgs.sif ~/gaussian-splatting/3dgs.def
+```
+
+Verify:
+
+```bash
+singularity exec --nv ~/containers/3dgs.sif bash -c "
+    colmap help | head -1
+    python -c 'import h5py, PIL, tqdm; print(\"deps OK\")'
+    python -c 'import diff_gaussian_rasterization; print(\"rasterizer OK\")'
+"
+```
+
+Expected: a COLMAP version line, `deps OK`, `rasterizer OK`.
+
+---
+
+## 3 — Prepare the raw data
 
 The pipeline expects one directory (`$RAW_DATA`) with the FineView release layout:
 
@@ -37,7 +60,7 @@ rsync -avz --progress /local/fineview_data/ user@server:/path/to/raw_data/
 
 ---
 
-## 3 — Export to COLMAP format
+## 4 — Export to COLMAP format
 
 Writes one COLMAP scene per species: masked white-background images, `cameras.txt`/`images.txt` from the h5 calibration, and the structured-light cloud installed as `points3D.ply` (the 3DGS init). COLMAP SIFT+triangulation is **off by default** — the structured-light cloud is used instead; set `RUN_COLMAP=1` only if you need a triangulated cloud for comparison.
 
@@ -48,6 +71,23 @@ export CODE_DIR=~/gaussian-splatting
 export RAW_DATA=/path/to/raw_data
 export DATA_DIR=/path/to/colmap_scenes
 mkdir -p "$DATA_DIR"
+```
+
+<details>
+<summary>Example — original setup on rhea (rhea.idsia.ch)</summary>
+
+```bash
+export CODE_DIR=/home/robertsk/gaussian-splatting
+export RAW_DATA=/media/white/nanodrones/roberts.kalvitis/3dgs/raw_data
+export DATA_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
+export OUTPUT_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/fineview_output
+export TORCH_CACHE=/media/white/nanodrones/roberts.kalvitis/3dgs/torch_cache
+```
+
+Container at `~/containers/3dgs.sif`; h5 calibration at `$RAW_DATA/camera_parameters.h5`; source data copied from the Mac at `~/Documents/repos/3DGS/imgs_filtered/` (`crop_undistort/`, `crop_mask_undistort/`, `correspondence_undistort/`) and `~/Documents/repos/fineview/camera_parameters.h5`.
+</details>
+
+```bash
 
 singularity exec --nv --cleanenv --contain \
     --bind "$CODE_DIR:/workspace" \
@@ -67,9 +107,11 @@ $DATA_DIR/<species>/
 
 ---
 
-## 4 — Train
+## 5 — Train
 
-Trains, renders, and computes metrics for all 5 species sequentially (~5 h total):
+Trains, renders, and computes metrics for all 5 species sequentially (~5 h total).
+
+**Name every experiment with `EXP_NAME`.** All outputs and logs of a launch are grouped under `$OUTPUT_DIR/$EXP_NAME/` — use a fresh name per launch (e.g. `baseline_30k`, `white_noise_test`) so different experiments never mix in the output directory.
 
 ```bash
 export OUTPUT_DIR=/path/to/fineview_output
@@ -78,6 +120,7 @@ mkdir -p "$OUTPUT_DIR" "$TORCH_CACHE"
 
 singularity exec --nv --cleanenv --contain \
     --env DEVICE=${DEVICE:-0} \
+    --env EXP_NAME=fineview_run1 \
     --bind "$CODE_DIR:/workspace" \
     --bind "$DATA_DIR:/data" \
     --bind "$OUTPUT_DIR:/output" \
@@ -85,8 +128,6 @@ singularity exec --nv --cleanenv --contain \
     ~/containers/3dgs.sif \
     bash /workspace/scripts/run_fineview_train.sh
 ```
-
-Optional: `EXP_NAME=my_experiment` nests all outputs under `$OUTPUT_DIR/my_experiment/`.
 
 Training settings (see `scripts/run_fineview_train.sh`):
 
@@ -103,21 +144,21 @@ Because the images are RGBA-masked, `render.py` also saves per-view foreground m
 
 ---
 
-## 5 — Monitor and collect results
+## 6 — Monitor and collect results
 
 ```bash
-tail -f "$OUTPUT_DIR"/logs/009-Neophasia_Menapia-001.log   # live log
-nvidia-smi                                                 # GPU utilisation
+tail -f "$OUTPUT_DIR"/fineview_run1/logs/009-Neophasia_Menapia-001.log   # live log
+nvidia-smi                                                               # GPU utilisation
 ```
 
-After all species finish:
+After all species finish (point `collect_results.py` at one experiment directory, not `$OUTPUT_DIR` itself):
 
 ```bash
 singularity exec --nv --cleanenv --contain \
     --bind "$OUTPUT_DIR:/output" \
     --bind "$CODE_DIR:/workspace" \
     ~/containers/3dgs.sif \
-    python /workspace/collect_results.py
+    python /workspace/collect_results.py /output/fineview_run1
 ```
 
-Per-species metrics are in `$OUTPUT_DIR/<species>/results.json`; each model directory also contains `hyperparams.txt`, `training_time.txt`, the trained point cloud, and rendered test views.
+Per-species metrics are in `$OUTPUT_DIR/<exp_name>/<species>/results.json`; each model directory also contains `hyperparams.txt`, `training_time.txt`, the trained point cloud, and rendered test views.

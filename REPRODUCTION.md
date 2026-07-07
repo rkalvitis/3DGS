@@ -93,6 +93,8 @@ Expected: `PyTorch: 2.0.1+cu118`, `CUDA available: True`, and all three extensio
 
 The job runs ~30 h, so launch it inside `screen` (reattach later with `screen -r 3dgs -U`). On a shared server, claim a free GPU first (`nvidia-smi`) and select it with `DEVICE`.
 
+**Name every experiment with `EXP_NAME`.** All outputs and logs of a launch are grouped under `$OUTPUT_DIR/$EXP_NAME/` — without it, repeated launches dump 65 run directories into the same folder and become impossible to tell apart.
+
 ```bash
 screen -S 3dgs -U
 
@@ -101,10 +103,26 @@ export DATA_DIR=/path/to/3dgs_data
 export OUTPUT_DIR=/path/to/3dgs_output
 export TORCH_CACHE=/path/to/torch_cache   # torchvision weights cache for LPIPS
 mkdir -p "$OUTPUT_DIR" "$TORCH_CACHE"
+```
+
+<details>
+<summary>Example — original setup on rhea (rhea.idsia.ch)</summary>
+
+```bash
+export CODE_DIR=/home/robertsk/gaussian-splatting
+export DATA_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_data
+export OUTPUT_DIR=/media/white/nanodrones/roberts.kalvitis/3dgs/3dgs_output_2
+export TORCH_CACHE=/media/white/nanodrones/roberts.kalvitis/3dgs/torch_cache
+```
+
+Container at `~/containers/3dgs.sif`. Check the MSTeams `rhea-users` channel for a free GPU, claim it there, and set `DEVICE` accordingly.
+</details>
+
+```bash
 
 singularity exec --nv --cleanenv --contain \
     --env DEVICE=${DEVICE:-1} \
-    --env EXP_NAME=${EXP_NAME:-} \
+    --env EXP_NAME=table1_run1 \
     --bind "$CODE_DIR:/workspace" \
     --bind "$DATA_DIR:/data" \
     --bind "$OUTPUT_DIR:/output" \
@@ -120,16 +138,16 @@ Detach from screen with **Ctrl+A, D**.
 | `--nv` | Exposes the NVIDIA driver to the container |
 | `--cleanenv --contain` | No host env vars or auto-mounted home — the container only sees the binds |
 | `DEVICE` | CUDA device index used by all runs (default 1) |
-| `EXP_NAME` | Optional experiment name — groups this launch's 65 runs (and logs) under `$OUTPUT_DIR/$EXP_NAME/` so repeated launches don't mix |
+| `EXP_NAME` | Experiment name — groups this launch's 65 runs (and logs) under `$OUTPUT_DIR/$EXP_NAME/`. Use a fresh name per launch |
 
 ---
 
 ## 5 — Monitor
 
 ```bash
-ls "$OUTPUT_DIR" | grep -v logs | wc -l          # runs completed (of 65)
-tail -f "$OUTPUT_DIR"/logs/bicycle_seed0.log     # live log of current run
-nvidia-smi                                       # GPU utilisation
+ls "$OUTPUT_DIR"/table1_run1 | grep -v logs | wc -l          # runs completed (of 65)
+tail -f "$OUTPUT_DIR"/table1_run1/logs/bicycle_seed0.log     # live log of current run
+nvidia-smi                                                   # GPU utilisation
 ```
 
 ---
@@ -143,7 +161,7 @@ singularity exec --nv --cleanenv --contain \
     --bind "$OUTPUT_DIR:/output" \
     --bind "$CODE_DIR:/workspace" \
     ~/containers/3dgs.sif \
-    python /workspace/collect_results.py
+    python /workspace/collect_results.py /output/table1_run1
 ```
 
-Prints mean PSNR/SSIM/LPIPS per scene across all seeds. Per-run metrics are in `$OUTPUT_DIR/<scene>_seed<N>/results.json` (7k and 30k iterations); each run directory also contains `cfg_args`, `hyperparams.txt`, `training_time.txt`, the Gaussian point clouds, and rendered test views.
+Prints mean PSNR/SSIM/LPIPS per scene across all seeds. Point it at one experiment directory — running it on `$OUTPUT_DIR` itself would mix the runs of every experiment stored there. Per-run metrics are in `$OUTPUT_DIR/<scene>_seed<N>/results.json` (7k and 30k iterations); each run directory also contains `cfg_args`, `hyperparams.txt`, `training_time.txt`, the Gaussian point clouds, and rendered test views.
