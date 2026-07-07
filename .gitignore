@@ -16,3 +16,6 @@ butterfly dataset.pdf
 presentation/
 3dgs_output_cams/
 .claude/
+llff_results.xlsx
+main_results.xlsx
+.DS_Store
