@@ -10,6 +10,7 @@
 #
 
 import os
+import time
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim
@@ -40,13 +41,27 @@ try:
 except:
     SPARSE_ADAM_AVAILABLE = False
 
-def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
+def save_hyperparams(model_path, dataset, opt, pipe, args):
+    with open(os.path.join(model_path, "hyperparams.txt"), "w") as f:
+        f.write("command: {}\n".format(" ".join(sys.argv)))
+        for name, params in (("ModelParams", dataset), ("OptimizationParams", opt), ("PipelineParams", pipe)):
+            f.write("\n[{}]\n".format(name))
+            for k, v in sorted(vars(params).items()):
+                f.write("{}: {}\n".format(k, v))
+        covered = set(vars(dataset)) | set(vars(opt)) | set(vars(pipe))
+        f.write("\n[Other]\n")
+        for k, v in sorted(vars(args).items()):
+            if k not in covered:
+                f.write("{}: {}\n".format(k, v))
+
+def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, args):
 
     if not SPARSE_ADAM_AVAILABLE and opt.optimizer_type == "sparse_adam":
         sys.exit(f"Trying to use sparse adam but it is not installed, please install the correct rasterizer using pip install [3dgs_accel].")
 
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
+    save_hyperparams(dataset.model_path, dataset, opt, pipe, args)
     gaussians = GaussianModel(dataset.sh_degree, opt.optimizer_type)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
@@ -70,6 +85,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
+    train_start_time = time.time()
     for iteration in range(first_iter, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -189,7 +205,17 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
 
-def prepare_output_and_logger(args):    
+    train_time = time.time() - train_start_time
+    n_iters = opt.iterations - first_iter + 1
+    print("\n[ TIMING ] Trained {} iterations in {:.1f}s = {:.2f} min ({:.1f} ms/iter)".format(
+        n_iters, train_time, train_time / 60.0, 1000.0 * train_time / max(n_iters, 1)))
+    with open(os.path.join(scene.model_path, "training_time.txt"), "w") as f:
+        f.write("iterations: {}\n".format(n_iters))
+        f.write("train_time_seconds: {:.2f}\n".format(train_time))
+        f.write("train_time_minutes: {:.2f}\n".format(train_time / 60.0))
+        f.write("ms_per_iter: {:.2f}\n".format(1000.0 * train_time / max(n_iters, 1)))
+
+def prepare_output_and_logger(args):
     if not args.model_path:
         if os.getenv('OAR_JOB_ID'):
             unique_str=os.getenv('OAR_JOB_ID')
@@ -267,19 +293,21 @@ if __name__ == "__main__":
     parser.add_argument('--disable_viewer', action='store_true', default=False)
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--device', type=int, default=1)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
-    
+
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
-    safe_state(args.quiet)
+    safe_state(args.quiet, args.seed, args.device)
 
     # Start GUI server, configure and run training
     if not args.disable_viewer:
         network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
+    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args)
 
     # All done
     print("\nTraining complete.")
